@@ -1,0 +1,26 @@
+{
+	"name": "action-dispatcher-pattern",
+	"version": "1.0.0",
+	"description": "Action dispatcher pattern example",
+	"main": "index.js",
+	"author": "McCall Alexander ",
+	"license": "MIT",
+	"scripts": {
+		"start": "nodemon src/app.js --exec babel-node --presets @babel/preset-env",
+		"test": "mocha --watch --compilers js:babel-core/register"
+	},
+	"devDependencies": {
+		"@babel/core": "^7.4.5",
+		"@babel/node": "^7.4.5",
+		"@babel/preset-env": "^7.4.5",
+		"babel-register": "^6.26.0",
+		"chai": "^4.2.0",
+		"mocha": "^6.1.4",
+		"nodemon": "^1.19.1"
+	},
+	"dependencies": {
+		"babel-polyfill": "^6.26.0",
+		"body-parser": "^1.19.0",
+		"express": "^4.17.1"
+	}
+}

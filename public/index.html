@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta http-equiv="X-UA-Compatible" content="ie=edge" />
+		<title>Action Dispatcher Example</title>
+	</head>
+	<body>
+		<div id="app">
+			<h1>Declaration of Ipsumpendence</h1>
+			<input
+				type="range"
+				min="74"
+				max="1776"
+				value="${state.wordCount}"
+				id="ipsum-gen-word-count"
+			/>
+			<label>
+				<span id="ipsum-current-word-count">
+					${ state.wordCount }
+				</span>
+				/ 1776 words
+			</label>
+			<br />
+			<button id="ipsum-gen-button">DECLARE IPSUMPENDENCE ✍️</button>
+			<div class="ipsum-text" id="ipsum-text">
+				${ state.ipsum }
+			</div>
+		</div>
+		<script type="text/javascript">
+			(async () => {
+				// simple renderer based on javascript template literal
+				const createApp = ({ el, addEventListeners = () => 0 }) => {
+					const template = el.innerHTML;
+					return {
+						render(state) {
+							el.innerHTML = eval('`' + template + '`');
+							addEventListeners();
+						}
+					};
+				};
+
+				// Simple redux store
+				const createStore = async reducer => {
+					let state = await reducer();
+					const listeners = [];
+					return {
+						async dispatch(action, payload = {}) {
+							state = await reducer(state, action, payload, this.dispatch);
+							for (const fn of listeners) fn(state);
+							return state;
+						},
+						subscribe(fn) {
+							listeners.push(fn);
+							fn(state);
+						},
+						get state() {
+							return state;
+						}
+					};
+				};
+
+				// an interface for our server actions
+				const dispatchServer = async (action, payload) => {
+					const res = await fetch('/api/dispatch', {
+						method: 'post',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify({
+							action,
+							payload
+						})
+					});
+					const json = await res.json();
+					return json;
+				};
+
+				// create store
+				const store = await createStore(
+					async (
+						state = {
+							ipsum: 'Loading...',
+							wordCount: 704
+						},
+						action,
+						payload,
+						dispatch
+					) => {
+						switch (action) {
+							case 'SET_WORD_COUNT':
+								return {
+									...state,
+									wordCount: payload.wordCount
+								};
+							case 'LOAD_IPSUM':
+								const { words } = await dispatchServer(
+									'IPSUM_GENERATE_DECLARATION_TEXT',
+									{ wordCount: state.wordCount }
+								);
+								return {
+									...state,
+									ipsum: words.join(' ')
+								};
+						}
+						return state;
+					}
+				);
+
+				const app = createApp({
+					el: document.getElementById('app'),
+					addEventListeners: () => {
+						const $el = (...args) => document.querySelector(...args);
+						const listen = (selector, event, fn) => {
+							return $el(selector).addEventListener(event, fn);
+						};
+						// on button click, reload ipsum text
+						listen(
+							'button#ipsum-gen-button',
+							'click',
+							async _ =>
+								await store.dispatch('LOAD_IPSUM', {
+									wordCount: $el('input#ipsum-gen-word-count').value
+								})
+						);
+						// on slider value change, update the word count
+						listen('input#ipsum-gen-word-count', 'change', async event => {
+							await store.dispatch('SET_WORD_COUNT', {
+								wordCount: parseInt(event.target.value)
+							});
+							await store.dispatch('LOAD_IPSUM');
+						});
+						// on slider drag, update the displayed word count
+						listen('input#ipsum-gen-word-count', 'input', async event => {
+							$el('span#ipsum-current-word-count').innerHTML =
+								event.target.value;
+						});
+					}
+				});
+
+				// when state is reduced
+				store.subscribe(state => {
+					console.log(state);
+					// fresh render from state
+					app.render(state);
+				});
+
+				store.dispatch('LOAD_IPSUM');
+			})();
+		</script>
+		<style>
+			body {
+				font-family: 'Snell Roundhand', cursive;
+				font-size: 30px;
+				text-align: center;
+			}
+
+			.ipsum-text {
+				margin: 20px;
+				padding: 15px;
+				background-color: oldlace;
+				box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.1);
+			}
+
+			button {
+				padding: 10px;
+				background: white;
+				border: none;
+				box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
+				text-shadow: 0px 0px 1px rgba(0, 0, 0, 0.2);
+				border-radius: 3px;
+				font-weight: 900;
+				font-size: 20px;
+				cursor: pointer;
+				margin-top: 10px;
+			}
+
+			button:hover {
+				cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="60" style="font-size: 30px;"><text y="30">🇺🇸</text></svg>'),
+					auto;
+			}
+		</style>
+	</body>
+</html>
